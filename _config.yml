@@ -16,10 +16,10 @@ timezone:
 
 title: nicks919 # the main title
 
-tagline: A text-focused Jekyll theme # it will display as the subtitle
+tagline: Cybersecurity enthusiast and a CTF player # it will display as the subtitle
 
 description: >- # used by seo meta and the atom feed
-  I'm Nihar, a Cybersecurity enthusiast passionate in Offensive security, A.I. security, and Threat Intelligence.
+  I am Nihar, a Cybersecurity enthusiast passionate in Offensive security, A.I. security, and Threat Intelligence.
   This is a place for my blog + Cybersecurity or CTF writeups. If you are a hacker or a Cybersecurity enthusiast, feel free to connect with me :)
 
 # Fill in the protocol & hostname for your site.

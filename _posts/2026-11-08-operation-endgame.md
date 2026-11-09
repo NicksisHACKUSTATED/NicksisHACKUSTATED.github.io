@@ -59,7 +59,7 @@ nxc smb AD.thm.local -u 'guest' -p '' --rid >> rid_brute.txt
 ```
 <img width="980" height="666" alt="rid-cycling" src="https://github.com/user-attachments/assets/f4c33789-3d68-4773-92cc-b290de9a62fe" />
 
-So now we got a list of around 492 users, all enumerated using RID cycling. You would need to filter out the piped text file, to keep just the usernames. Here's the python script I used:
+So now we got a list of around 300+ users, all enumerated using RID cycling. You would need to filter out the piped text file, to keep just the usernames. Here's the python script I used:
 ```python
 import re
 

@@ -15,23 +15,9 @@ An nmap full port/service scan revealed a standard Domain Controller footprint:
 
 Host: Windows (Build 17763) · Domain: thm.local · Server: AD
 
-Open ports / services
-| Port        | Service      | Notes                                                    |
-|-------------|--------------|----------------------------------------------------------|
-| 53          | domain       | Simple DNS Plus                                          |
-| 80          | http         | Microsoft IIS 10.0 — GET only (no other methods)         |
-| 88          | kerberos-sec | Windows Kerberos                                         |
-| 135         | msrpc        |                                                          |
-| 139         | netbios-ssn  |                                                          |
-| 389         | ldap         | AD LDAP                                                  |
-| 443         | ssl/https    | ad.thm.local cert (self-signed, valid 2026-10 → 2027-04) |
-| 445         | microsoft-ds |                                                          |
-| 464         | kpasswd5     |                                                          |
-| 593         | ncacn_http   | RPC over HTTP 1.0                                        |
-| 636         | tcpwrapped   | (likely LDAPS)                                           |
-| 9389        | mc-nmf       | .NET Message Framing                                     |
-| 47001       | http         | SSDP/UPnP HTTPAPI                                        |
-| 49664–49716 | msrpc        | multiple RPC endpoints including NCACN_HTTP              |
+<img width="733" height="667" alt="scan" src="https://github.com/user-attachments/assets/42b5991f-8074-4a9f-b4d9-75011684f42f" />
+<img width="738" height="676" alt="scan2" src="https://github.com/user-attachments/assets/6711b9aa-1a81-4c74-b4e2-c0cf460e1a1d" />
+
 
 This confirmed a single DC environment with LDAP, Kerberos, SMB, and RDP all reachable — a wide attack surface to start from.
 
@@ -207,6 +193,7 @@ Whoami confirmed we have access as JERRI_LANCASTER
 <img width="1025" height="634" alt="jerri_rdp" src="https://github.com/user-attachments/assets/a98564d4-2c87-49a6-a76c-c52a9da74a05" />
 
 After a lil enumeration, I found out that `C:\Scripts` was now accessible, by this user. On viewing the directory, I found out that there is a powershell script stored `syncer.ps1`
+
 ```PowerShell
 type syncer.ps1
 ```
@@ -238,6 +225,7 @@ Then I decided to use `smbexec.py` instead to spawn the shell in **SYSTEM** cont
 smbexec.py 'thm.local/SANFORD_DAUGHERTY:REDACTED@AD.thm.local'
 ```
 smbexec shell as **NT AUTHORITY\SYSTEM** whoami now returns **nt authority\system** — full SYSTEM-level access on the Domain Controller.
+
 <img width="917" height="191" alt="got_SYSTEM32" src="https://github.com/user-attachments/assets/9809f0ca-f710-48a4-af3a-7313a455a213" />
 
 ## Retrieving the flag
@@ -248,6 +236,7 @@ This will retrieve the flag successfully. We have successfully exploited the Act
 <img width="777" height="69" alt="flag" src="https://github.com/user-attachments/assets/99846f0c-9aae-427d-8428-8557ad590f56" />
 
 ## Full Attack Chain
+
 
 <details>
 <summary><strong>Full Attack Path (click to expand)</strong></summary>
@@ -281,6 +270,7 @@ Flag captured on Administrator's Desktop
 
 
 </details>
+
 
 ## Remediation Steps
 

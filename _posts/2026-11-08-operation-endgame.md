@@ -2,7 +2,7 @@
 
 ## Overview
 
-This writeup documents a full Active Directory penetration test chain against a TryHackMe lab box (domain thm.local), going from initial unauthenticated recon all the way to a DCSync-based full domain compromise. The path involved username enumeration, Kerberos attacks (AS-REP Roasting, Kerberoasting, Targeted Kerberoasting), password reuse via spraying, BloodHound-driven ACL abuse, and a classic "plaintext credentials in an automation script" finding, leading to full domain takeover.
+This writeup documents a full Active Directory penetration test chain against a TryHackMe lab box (domain thm.local), going from initial unauthenticated recon all the way leading to Domain Admin access and ultimately SYSTEM-level access on the Domain Controller. The path involved username enumeration, Kerberos attacks (AS-REP Roasting, Kerberoasting, Targeted Kerberoasting), password reuse via spraying, BloodHound-driven ACL abuse, and a classic "plaintext credentials in an automation script" finding, leading to full domain takeover.
 
 <img width="1200" height="1200" alt="operation-endgame-cover" src="https://github.com/user-attachments/assets/e5199de7-985e-4902-8d54-e85f2204b838" />
 

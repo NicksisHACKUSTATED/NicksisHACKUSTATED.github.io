@@ -317,7 +317,7 @@ Never hardcode credentials in .ps1/.bat/automation scripts. Use:
 gMSA for scheduled tasks and services
 A credential vault (Azure Key Vault, CyberArk, HashiCorp Vault, Windows Credential Manager with DPAPI)
 Restrict read access on directories like C:\Scripts to only the accounts/service that need it — this script was readable by a standard low-privilege session.
-Rotate any credential with a name/comment suggesting it was “temporary” (RESET_ASAP123 is a textbook example of a password that should never have persisted).
+Rotate any credential with a name/comment suggesting it was “temporary”.
 
 **Over-Privileged Service Accounts**
 Audit Domain Admins / Administrators membership regularly — a credential meant for a narrow sync automation task had no business sitting directly in Domain Admins.
